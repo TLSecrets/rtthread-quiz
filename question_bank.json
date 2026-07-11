@@ -1570,5 +1570,196 @@
     "correctAnswer": "C",
     "analysis": "事件集的优势：一个事件可以被**多个线程**同时接收处理（一对多同步），且可以**重复使用**。与信号量不同，事件集发送后不会自动清除（除非设置为自动清除）。",
     "memoryTip": "事件集=群发消息→多线程可收→可复用。一对多广播。"
+  },
+  {
+    "id": 63,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "事件集也是线程间同步的机制之一，一个事件集可以包含多个事件。一个事件集可以包含的事件数最多为（）个。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "32"
+        ],
+        "primary": "32"
+      }
+    ]
+  },
+  {
+    "id": 64,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "信号量的值表示可用资源量，其取值范围是：（）~65535。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "0"
+        ],
+        "primary": "0"
+      }
+    ]
+  },
+  {
+    "id": 65,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "多个线程操作/访问同一块区域（代码），这块代码就称为（）。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "临界区"
+        ],
+        "primary": "临界区"
+      }
+    ]
+  },
+  {
+    "id": 66,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "线程同步是指多个线程通过特定的机制来控制线程之间的执行顺序。RT-Thread的同步机制包括：信号量、（）、事件集三种。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "互斥量",
+          "mutex",
+          "互斥锁"
+        ],
+        "primary": "互斥量"
+      }
+    ]
+  },
+  {
+    "id": 67,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "使用语句 static struct semaphore sem1 声明的信号量sem1是（）（动态、静态）信号量；使用语句 static rt_sem sem2 声明的信号量sem2是（）（动态、静态）信号量。",
+    "score": 0,
+    "blankCount": 2,
+    "answers": [
+      {
+        "accepted": [
+          "静态"
+        ],
+        "primary": "静态"
+      },
+      {
+        "accepted": [
+          "动态"
+        ],
+        "primary": "动态"
+      }
+    ]
+  },
+  {
+    "id": 68,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "当成功获取了信号量后，其数值会（）；而成功获取互斥量后其数值会变为（）。",
+    "score": 0,
+    "blankCount": 2,
+    "answers": [
+      {
+        "accepted": [
+          "减1",
+          "-1",
+          "减少1",
+          "递减"
+        ],
+        "primary": "减1"
+      },
+      {
+        "accepted": [
+          "0",
+          "零"
+        ],
+        "primary": "0"
+      }
+    ]
+  },
+  {
+    "id": 69,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "（）是指按预定的先后次序进行运行。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "同步",
+          "线程同步"
+        ],
+        "primary": "同步"
+      }
+    ]
+  },
+  {
+    "id": 70,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "有th1和th2两个线程都去获取互斥量M，其中线程th2获得了M，则M的释放需要线程（）完成。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "th2"
+        ],
+        "primary": "th2"
+      }
+    ]
+  },
+  {
+    "id": 71,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "信号量是一种轻型的用于解决线程间同步问题的内核对象，线程可以获取或释放它，从而达到同步或互斥的目的。信号量的取值范围（）~65535。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "0"
+        ],
+        "primary": "0"
+      }
+    ]
+  },
+  {
+    "id": 72,
+    "week": 4,
+    "topic": "线程",
+    "type": "fill_blank",
+    "title": "目前RT-Thread使用的同步机制有信号量、（）和事件集三种。",
+    "score": 0,
+    "blankCount": 1,
+    "answers": [
+      {
+        "accepted": [
+          "互斥量",
+          "mutex",
+          "互斥锁"
+        ],
+        "primary": "互斥量"
+      }
+    ]
   }
 ]
