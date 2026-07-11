@@ -408,6 +408,7 @@ const S = {
 };
 let _lastPoolKey='';
 // ===== PERSISTENCE =====
+const BANK_VERSION=3;
 let BANK=[], favorites=new Set(), favTimestamps={}, userAnswers={}, submittedAnswers={}, activeQuestions=[];
 let weeklyMap={};
 function save(){try{localStorage.setItem('rtq_v2',JSON.stringify({
@@ -416,9 +417,18 @@ function save(){try{localStorage.setItem('rtq_v2',JSON.stringify({
 function load(){try{let d=JSON.parse(localStorage.getItem('rtq_v2')||'{}');
   if(d.favorites)favorites=new Set(d.favorites);if(d.favTimestamps)favTimestamps=d.favTimestamps;
   if(d.userAnswers)userAnswers=d.userAnswers;if(d.submittedAnswers)submittedAnswers=d.submittedAnswers||{};
-  ['layout','typeFilter','answerMode','orderMode','optShuffle','favRange','favSort','analysisMode','theme','activeWeek','scope','submitted','debugOrigId','autoJumpDelay'].forEach(k=>{if(d[k]!==undefined)S[k]=d[k]})}catch(e){}}
+  ['layout','typeFilter','answerMode','orderMode','optShuffle','favRange','favSort','analysisMode','theme','activeWeek','scope','submitted','debugOrigId','autoJumpDelay','bankVersion'].forEach(k=>{if(d[k]!==undefined)S[k]=d[k]})}catch(e){}}
 // ===== BANK =====
-async function loadBank(){try{let r=await fetch('question_bank.json');if(r.ok)BANK=await r.json();else throw 0}catch(e){if(typeof INLINE_BANK!=='undefined')BANK=INLINE_BANK}buildWeekly();refresh()}
+function loadBank(){
+  // 直接使用内联题库（避免fetch跨域/缓存问题）
+  if(typeof INLINE_BANK!=='undefined')BANK=INLINE_BANK;
+  // 版本检测：题库变化时自动清理旧localStorage
+  if(S.bankVersion!==BANK_VERSION){
+    userAnswers={};submittedAnswers={};
+    S.bankVersion=BANK_VERSION;
+  }
+  buildWeekly();refresh();
+}
 function buildWeekly(){weeklyMap={};BANK.forEach(q=>{if(!weeklyMap[q.week])weeklyMap[q.week]=[];weeklyMap[q.week].push(q)})}
 // ===== FILTER =====
 function filterPool(){
@@ -885,7 +895,7 @@ const INLINE_BANK = [{"id": 1,"week": 13,"topic": "中断管理与IO设备管理
 </script>
 <script>
 // Auto-detect: if external JSON failed and inline is empty, show warning
-window.addEventListener('load',()=>{if(BANK.length===0&&INLINE_BANK.length>0){BANK=INLINE_BANK;buildWeekly();refresh()}});
+window.addEventListener('load',()=>{if(BANK.length===0&&INLINE_BANK.length>0){BANK=INLINE_BANK;if(S.bankVersion!==BANK_VERSION){S.bankVersion=BANK_VERSION;userAnswers={};submittedAnswers={};save()}buildWeekly();refresh()}});
 </script>
 </body>
 </html>
