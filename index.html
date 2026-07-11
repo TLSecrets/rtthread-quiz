@@ -598,21 +598,21 @@ function updateMain(){
 }
 function renderQ(q,idx){
   let card=createEl('div',{class:'q-card',id:'q-'+q.id});
-  let sub,isCorrect,ua,answered;
+  let sub,isCorrect,ua,answered,judged;
   if(S.scope==='wrong'){
-    // 错题库：独立新环境，忽略所有旧判定和草稿痕迹
-    sub=undefined;isCorrect=undefined;ua=undefined;answered=false;
+    sub=undefined;isCorrect=undefined;ua=undefined;answered=false;judged=false;
   }else{
     sub=submittedAnswers[q.id];isCorrect=sub?.correct;
-    if(sub){ua=undefined;answered=false}
-    else{ua=userAnswers[q.id];answered=ua!==undefined&&ua!==null}
-    if(isCorrect===true)card.classList.add('correct');
-    if(isCorrect===false)card.classList.add('wrong');
+    judged=!!sub;
+    ua=userAnswers[q.id];
+    answered=ua!==undefined&&ua!==null;
+    if(judged&&isCorrect===true)card.classList.add('correct');
+    if(judged&&isCorrect===false)card.classList.add('wrong');
   }
   if(favorites.has(q.id))card.classList.add('favorited');
   // Header
   let metaHTML='<span class="q-tag week">第'+q.week+'周</span><span class="q-tag type">'+(q.type==='single_choice'?'单选':'填空')+'</span>';
-  if(S.scope!=='wrong'&&sub&&isCorrect===false)metaHTML+='<span class="q-tag wrong-tag">❌ 答错</span>';
+  if(S.scope!=='wrong'&&judged&&isCorrect===false)metaHTML+='<span class="q-tag wrong-tag">❌ 答错</span>';
   if(favorites.has(q.id))metaHTML+='<span class="q-tag fav-tag">⭐ 收藏</span>';
   let header=createEl('div',{class:'q-header',html:metaHTML+'<span style="font-size:0.68rem;color:var(--text-secondary)">#'+(idx+1)+'</span>'});
   // Title
@@ -624,8 +624,8 @@ function renderQ(q,idx){
     let dOpts=getDisplayOpts(q);let optsDiv=createEl('div',{class:'options'});
     dOpts.forEach((opt,i)=>{
       let displayLetter=String.fromCharCode(65+i);
-      let oc='option';if(answered&&ua===opt.id)oc+=' selected';
-      if(S.scope!=='wrong'&&(S.submitted||((S.answerMode==='instant'||S.answerMode==='fast')&&answered))){oc+=' disabled';if(opt.id===q.correctAnswer)oc+=' correct-answer';if(answered&&ua===opt.id&&ua!==q.correctAnswer)oc+=' wrong-answer'}
+      let oc='option';if(!judged&&answered&&ua===opt.id)oc+=' selected';
+      if(S.scope!=='wrong'&&judged){oc+=' disabled';if(opt.id===q.correctAnswer)oc+=' correct-answer';if(ua===opt.id&&ua!==q.correctAnswer)oc+=' wrong-answer'}
       let oDiv=createEl('div',{class:oc+' '+(S.debugOrigId?'show-orig':'')});
       oDiv.dataset.qid=q.id;oDiv.dataset.opt=opt.id;
       oDiv.dataset.disp=displayLetter;
@@ -633,7 +633,7 @@ function renderQ(q,idx){
       let txt=createEl('span',{text:opt.text});
       let orig=createEl('span',{class:'orig-id',text:'(原'+opt.id+')'});
       oDiv.appendChild(letter);oDiv.appendChild(txt);oDiv.appendChild(orig);
-      if(S.scope==='wrong'||(!sub&&!(S.submitted||(S.answerMode==='instant'&&answered)))){oDiv.addEventListener('click',()=>selectOption(q.id,opt.id))}
+      if(S.scope==='wrong'||!judged){oDiv.addEventListener('click',()=>selectOption(q.id,opt.id))}
       optsDiv.appendChild(oDiv);
     });
     bodyEl.appendChild(optsDiv);
@@ -646,13 +646,13 @@ function renderQ(q,idx){
       // 已判定题：不显示草稿填写内容
       let val='';let ic='';
       if(S.scope!=='wrong'){
-        val=(sub?null:(ua&&ua[i]))||'';
-        if((S.submitted||((S.answerMode==='instant'||S.answerMode==='fast')&&answered))&&sub){let br=sub.blanks?.[i];if(br===true)ic='correct-input';else if(br===false)ic='wrong-input'}
+        val=(ua&&ua[i])||'';
+        if(judged&&sub){let br=sub.blanks?.[i];if(br===true)ic='correct-input';else if(br===false)ic='wrong-input'}
       }
-      let inp=createEl('input',{type:'text',class:ic,value:val,placeholder:(S.scope==='wrong'?'错题重做...':(sub?'(已判定)':'输入答案...'))});
+      let inp=createEl('input',{type:'text',class:ic,value:val,placeholder:(S.scope==='wrong'?'错题重做...':(judged?'(已判定)':'输入答案...'))});
       inp.dataset.qid=q.id;inp.dataset.blank=i;
-      if(S.scope!=='wrong'&&(S.submitted||((S.answerMode==='instant'||S.answerMode==='fast')&&answered)))inp.disabled=true;
-      if(S.scope==='wrong'||!sub)inp.addEventListener('input',function(){onFillInput(q.id,i,this.value)});
+      if(S.scope!=='wrong'&&judged)inp.disabled=true;
+      if(S.scope==='wrong'||!judged)inp.addEventListener('input',function(){onFillInput(q.id,i,this.value)});
       fi.appendChild(lbl);fi.appendChild(inp);fbg.appendChild(fi);
     }
     // 确认按钮（instant/fast 模式，未提交，已作答）
@@ -662,7 +662,7 @@ function renderQ(q,idx){
       fbg.appendChild(confirmBtn);
     }
     // 答错后显示正确答案
-    if(S.scope!=='wrong'&&sub&&sub.blanks){
+    if(S.scope!=='wrong'&&judged&&sub&&sub.blanks){
       let correctDiv=createEl('div',{style:'margin-top:6px;font-size:0.78rem;color:var(--success);line-height:1.7'});
       let hasWrong=sub.blanks.some(b=>b===false);
       if(hasWrong||S.submitted){
@@ -767,22 +767,23 @@ function retryAll(){S.submitted=false;submittedAnswers={};userAnswers={};BANK.fo
 // ===== PAGINATION =====
 function goPage(dir){let np=S.currentPage+dir;if(np<0||np>=activeQuestions.length)return;S.currentPage=np;refresh()}
 // ===== SETTINGS =====
-function setLayout(v){S.layout=v;if(v==='global')S.activeWeek=null;clearTracesNoToast();S.currentPage=0;save();refresh();toast('✅ 布局已切换')}
-function setTypeFilter(v){S.typeFilter=v;clearTracesNoToast();S.currentPage=0;save();refresh()}
-function setAnswerMode(v){S.answerMode=v;S.submitted=false;submittedAnswers={};userAnswers={};BANK.forEach(q=>{q._showAnalysis=false});S.currentPage=0;save();refresh();toast('✅ 答题模式已切换')}
-function setOrderMode(v){S.orderMode=v;clearTracesNoToast();S.currentPage=0;save();refresh();toast('✅ 排序模式已更新')}
-function setOptShuffle(v){S.optShuffle=v;clearTracesNoToast();save();refresh();toast('✅ 选项打乱配置已更新')}
+function setLayout(v){
+  clearAllTraces();S.layout=v;if(v==='global')S.activeWeek=null;S.currentPage=0;save();refresh();toast('✅ 布局已切换')}
+function setTypeFilter(v){clearAllTraces();S.typeFilter=v;S.currentPage=0;save();refresh()}
+function setAnswerMode(v){clearAllTraces();S.answerMode=v;S.currentPage=0;save();refresh();toast('✅ 答题模式已切换')}
+function setOrderMode(v){clearAllTraces();S.orderMode=v;S.currentPage=0;save();refresh();toast('✅ 排序模式已更新')}
+function setOptShuffle(v){clearTraces();S.optShuffle=v;save();refresh();toast('✅ 选项打乱配置已更新')}
 function setFavRange(v){
   S.favRange=v;
   if(v==='zone_only'&&S.scope==='fav_only'){S.scope='all';toast('⚠ 收藏范围改为"仅专区"，已自动切换到全部题目')}
-  clearTracesNoToast();save();refresh();toast('✅ 收藏范围已更新')
+  save();refresh();toast('✅ 收藏范围已更新')
 }
-function setFavSort(v){S.favSort=v;clearTracesNoToast();save();refresh();toast('✅ 收藏排序已更新')}
-function setAnalysisMode(v){S.analysisMode=v;clearTracesNoToast();save();refresh();toast('✅ 解析时机已更新')}
+function setFavSort(v){S.favSort=v;save();refresh();toast('✅ 收藏排序已更新')}
+function setAnalysisMode(v){S.analysisMode=v;save();refresh();toast('✅ 解析时机已更新')}
 function setTheme(v){S.theme=v;document.documentElement.setAttribute('data-theme',v);save();updateSidebar();refresh();toast(v==='dark'?'🌙 已切换暗色主题':'☀ 已切换亮色主题')}
 function setScope(v){
   if(v==='fav_only'&&S.favRange==='zone_only'){toast('⚠ 收藏范围设为"仅专区"，无法在此筛选收藏');return}
-  S.scope=v;clearTracesNoToast();S.currentPage=0;save();refresh();
+  clearAllTraces();S.scope=v;S.currentPage=0;save();refresh();
   if(v==='wrong')toast('🔄 错题库模式：题目全新，做对自动移出');
 }
 function toggleDebugOrigId(v){S.debugOrigId=v;save();refresh();toast(v?'🔍 已显示选项原始ID':'🔍 已隐藏选项原始ID')}
@@ -836,8 +837,21 @@ function doResetAnswers(){
   BANK.forEach(q=>{q._showAnalysis=false});S.currentPage=0;
   save();document.getElementById('resultPanel').innerHTML='';refresh();toast('📝 答题与错题记录已重置，收藏已保留')
 }
-function clearTracesNoToast(){
+function clearTraces(){
   // 仅清除草稿痕迹（userAnswers），保留已提交的错题记录（submittedAnswers）
+  userAnswers={};
+  BANK.forEach(q=>{q._showAnalysis=false});
+  S.currentPage=0;
+  save();refresh();toast('🧹 作答痕迹已清除（错题记录已保留）');
+}
+function clearTracesNoToast(){
+  userAnswers={};
+  BANK.forEach(q=>{q._showAnalysis=false});
+}
+function toggleOptionId(){S.showOptionId=!S.showOptionId;setState('showOptionId',S.showOptionId);save();refresh();toast(S.showOptionId?'🔍 已显示选项原始ID':'🔍 已隐藏选项原始ID');}
+function setAutoJumpDelay(v){S.autoJumpDelay=v;save();toast('⏱ 自动跳转间隔已更新');}
+function clearAllTraces(){
+  submittedAnswers={};
   userAnswers={};
   BANK.forEach(q=>{q._showAnalysis=false});
 }
