@@ -265,6 +265,13 @@ body{
 .debug-switch{display:flex;align-items:center;gap:6px;font-size:0.68rem;color:var(--text-muted);cursor:pointer;margin-top:4px;padding:4px 6px;border-radius:4px;transition:all var(--transition)}
 .debug-switch:hover{background:var(--accent-light)}
 .debug-switch input{margin:0}
+/* Slider & Presets */
+.slider-wrap{display:flex;align-items:center;gap:8px;margin-top:2px}
+.slider-wrap input[type=range]{flex:1;height:6px;border-radius:3px;background:var(--border);appearance:none;cursor:pointer}
+.slider-wrap input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,0.2)}
+.slider-val{font-size:0.7rem;font-weight:700;color:var(--accent);min-width:40px;text-align:right}
+.slider-presets{display:flex;gap:3px;margin-top:3px}
+.preset-btn.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
 /* ===== Responsive ===== */
 @media (max-width:768px){
   .app{flex-direction:column}
@@ -299,6 +306,20 @@ body{
     <!-- Answer Mode -->
     <div class="side-section"><div class="side-label">⚡ 答题模式</div>
       <div class="radio-group" id="answerModeGroup"></div></div>
+    <!-- Auto Jump Delay (fast mode only) -->
+    <div class="side-section" id="jumpDelaySection" style="display:none">
+      <div class="side-label">⏱ 自动跳转间隔</div>
+      <div class="slider-wrap">
+        <input type="range" id="jumpDelaySlider" min="200" max="5000" step="100" value="800" oninput="setJumpDelay(this.value)">
+        <span class="slider-val" id="jumpDelayLabel">800ms</span>
+      </div>
+      <div class="slider-presets">
+        <button class="btn sm preset-btn" data-delay="300" onclick="setJumpDelay(300)">0.3s</button>
+        <button class="btn sm preset-btn active" data-delay="800" onclick="setJumpDelay(800)">0.8s</button>
+        <button class="btn sm preset-btn" data-delay="1500" onclick="setJumpDelay(1500)">1.5s</button>
+        <button class="btn sm preset-btn" data-delay="3000" onclick="setJumpDelay(3000)">3s</button>
+      </div>
+    </div>
     <!-- Order -->
     <div class="side-section"><div class="side-label">🔀 排序模式</div>
       <div class="radio-group" id="orderGroup"></div></div>
@@ -383,8 +404,9 @@ const S = {
   orderMode:'original', optShuffle:'off', favRange:'zone_only',
   favSort:'time_order', analysisMode:'instant', theme:'dark',
   activeWeek:null, scope:'all', submitted:false,
-  currentPage:0, debugOrigId:false
+  currentPage:0, debugOrigId:false, autoJumpDelay:800
 };
+let _lastPoolKey='';
 // ===== PERSISTENCE =====
 let BANK=[], favorites=new Set(), favTimestamps={}, userAnswers={}, submittedAnswers={}, activeQuestions=[];
 let weeklyMap={};
@@ -394,7 +416,7 @@ function save(){try{localStorage.setItem('rtq_v2',JSON.stringify({
 function load(){try{let d=JSON.parse(localStorage.getItem('rtq_v2')||'{}');
   if(d.favorites)favorites=new Set(d.favorites);if(d.favTimestamps)favTimestamps=d.favTimestamps;
   if(d.userAnswers)userAnswers=d.userAnswers;if(d.submittedAnswers)submittedAnswers=d.submittedAnswers||{};
-  ['layout','typeFilter','answerMode','orderMode','optShuffle','favRange','favSort','analysisMode','theme','activeWeek','scope','submitted','debugOrigId'].forEach(k=>{if(d[k]!==undefined)S[k]=d[k]})}catch(e){}}
+  ['layout','typeFilter','answerMode','orderMode','optShuffle','favRange','favSort','analysisMode','theme','activeWeek','scope','submitted','debugOrigId','autoJumpDelay'].forEach(k=>{if(d[k]!==undefined)S[k]=d[k]})}catch(e){}}
 // ===== BANK =====
 async function loadBank(){try{let r=await fetch('question_bank.json');if(r.ok)BANK=await r.json();else throw 0}catch(e){if(typeof INLINE_BANK!=='undefined')BANK=INLINE_BANK}buildWeekly();refresh()}
 function buildWeekly(){weeklyMap={};BANK.forEach(q=>{if(!weeklyMap[q.week])weeklyMap[q.week]=[];weeklyMap[q.week].push(q)})}
@@ -497,6 +519,14 @@ function updateSidebar(){
   document.querySelectorAll('#typeGroup .btn').forEach(b=>b.classList.toggle('active',b.dataset.type===S.typeFilter));
   // Debug
   document.getElementById('debugOrigId').checked=S.debugOrigId;
+  // Jump delay section (only in fast mode)
+  let jds=document.getElementById('jumpDelaySection');
+  jds.style.display=S.answerMode==='fast'?'':'none';
+  if(S.answerMode==='fast'){
+    let s=document.getElementById('jumpDelaySlider');if(s)s.value=S.autoJumpDelay;
+    let l=document.getElementById('jumpDelayLabel');if(l)l.textContent=S.autoJumpDelay+'ms';
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.delay)===S.autoJumpDelay));
+  }
 }
 function renderRadios(groupId, opts, selectedVal, onChange){
   let g=document.getElementById(groupId);g.innerHTML='';
@@ -520,7 +550,8 @@ function getStateKey(gid){
   return m[gid]||'';
 }
 function updateMain(){
-  let pool=filterPool();activeQuestions=applyOrder(pool);
+  let pool=filterPool();let poolKey=JSON.stringify({len:pool.length,ids:pool.map(q=>q.id),mode:S.orderMode,scope:S.scope,favSort:S.favSort,opt:S.optShuffle});
+  if(poolKey!==_lastPoolKey){activeQuestions=applyOrder(pool);_lastPoolKey=poolKey;S.currentPage=Math.min(S.currentPage,activeQuestions.length-1)}
   // Title
   let title='全部题目';if(S.layout==='weekly'&&S.activeWeek!==null){let wq=weeklyMap[S.activeWeek];title='第'+S.activeWeek+'周 · '+(wq?wq[0].topic:'')}
   if(S.scope==='wrong')title='❌ 错题回顾';if(S.scope==='fav_only')title='⭐ 收藏题目';
@@ -643,7 +674,7 @@ function selectOption(qid,optId){
   let q=BANK.find(x=>x.id===qid),correct=q.correctAnswer===optId;
   if(S.answerMode==='instant'||S.answerMode==='fast'){
     submittedAnswers[qid]={correct};save();refresh();
-    if(S.answerMode==='fast'&&correct){setTimeout(()=>{if(S.currentPage<activeQuestions.length-1){S.currentPage++;refresh()}},800)}
+    if(S.answerMode==='fast'&&correct){setTimeout(()=>{if(S.currentPage<activeQuestions.length-1){S.currentPage++;refresh()}},S.autoJumpDelay)}
   }else{refresh()}
 }
 function onFillInput(qid,blankIdx,value){
@@ -658,7 +689,7 @@ function checkFill(qid){
   let q=BANK.find(x=>x.id===qid);if(!q)return;
   let uv=userAnswers[qid]||[],brs=q.answers.map((ans,i)=>{let val=(uv[i]||'').trim().toLowerCase();return ans.accepted.some(a=>a.trim().toLowerCase()===val)});
   let allOk=brs.every(r=>r===true);submittedAnswers[qid]={correct:allOk,blanks:brs};save();refresh();
-  if(S.answerMode==='fast'&&allOk){setTimeout(()=>{if(S.currentPage<activeQuestions.length-1){S.currentPage++;refresh()}},800)}
+  if(S.answerMode==='fast'&&allOk){setTimeout(()=>{if(S.currentPage<activeQuestions.length-1){S.currentPage++;refresh()}},S.autoJumpDelay)}
 }
 function toggleAnalysis(qid){let q=BANK.find(x=>x.id===qid);if(!q)return;q._showAnalysis=!q._showAnalysis;refresh()}
 function toggleFav(qid){
@@ -703,6 +734,16 @@ function setScope(v){
   S.scope=v;S.currentPage=0;save();refresh();
 }
 function toggleDebugOrigId(v){S.debugOrigId=v;save();refresh();toast(v?'🔍 已显示选项原始ID':'🔍 已隐藏选项原始ID')}
+// ===== JUMP DELAY =====
+function setJumpDelay(val){
+  let v=parseInt(val);S.autoJumpDelay=v;save();
+  let slider=document.getElementById('jumpDelaySlider');
+  if(slider)slider.value=v;
+  let label=document.getElementById('jumpDelayLabel');
+  if(label)label.textContent=v+'ms';
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.delay)===v));
+  toast('⏱ 自动跳转间隔：'+v+'ms');
+}
 // ===== RESET =====
 function confirmReset(){
   let overlay=createEl('div',{class:'confirm-overlay',id:'confirmOverlay'});
